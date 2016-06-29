@@ -18,7 +18,7 @@ import com.aliyun.odps.mapred.utils.InputUtils;
 import com.aliyun.odps.mapred.utils.OutputUtils;
 import com.aliyun.odps.mapred.utils.SchemaUtils;
 
-public class test_data_1 {
+public class train_data78 {
 
   public static class TokenizerMapper extends MapperBase {
     private Record song_id;
@@ -35,13 +35,10 @@ public class test_data_1 {
     public void map(long recordNum, Record record, TaskContext context)
         throws IOException {
     	song_id.set(new Object[] { record.get(0).toString() });
-    	Object temp_k[] = new Object[13];
+    	Object temp_k[] = new Object[9];
     	temp_k[0] = Long.parseLong(record.get(1).toString());
     	for (int i = 2; i < record.getColumnCount(); i++) {
-    		if(i == 10)
-    			temp_k[i-1] = record.get(i).toString();
-    		else
-    			temp_k[i-1] = Double.parseDouble(record.get(i).toString());
+    		temp_k[i-1] = Double.parseDouble(record.get(i).toString());
     	}
     	day_count.set(temp_k);
     	context.write(song_id, day_count);
@@ -67,58 +64,32 @@ public class test_data_1 {
     	int before_day = 4;
     	//parse end
     	Double sum = 0.0; // delete mean of everyday less ignore
-    	Double sum_20 = 0.0;
     	Double[][] map_day = new Double[183][8];
-    	Record val = null;
         while (values.hasNext()) {
-          val = values.next();
+          Record val = values.next();
           sum += (Double) val.get(1);
-          if(Integer.parseInt(val.get(0).toString()) >= 163)
-        	  sum_20 += (Double) val.get(1);
           for(int i=0; i<8; i++){
         	  map_day[Integer.parseInt(val.get(0).toString())][i] = (Double)val.get(1+i);
           }
         }
-        //get publish_time
-        Double publish_time = 0.0;
-        SimpleDateFormat sdf=new SimpleDateFormat("yyyyMMdd");
-        try {
-			Date dt = sdf.parse(val.get(9).toString());
-			Date bdt = sdf.parse("20150301");
-			publish_time = (double) ((bdt.getTime()-dt.getTime())/(24*60*60*1000));
-        } catch (ParseException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-        }
-        Double song_init_plays = (Double)val.get(10);
-        Double language = (Double)val.get(11);
-        Double gender = (Double)val.get(12);
-        //get publish_time end
         /*
         if(sum/183.0 < ignore){
         	for(int i=0; i<60; i++){
         		result.set(0, key.get(0));
         		result.set(1, i);
-        		result.set(2, (long) (sum_20/20.0));
+        		result.set(2, (long) (sum/183.0));
         		context.write(result); 
         	}
         }
         */
         /* 0->1, 1->2, 2->3, 3->5, 4->7, 5->10, 6->15, 7->20 */
-        
         if(sum/183.0 >= ignore){
-        	for(int i=183; i<184; i++){
-        	//for(int i=121; i<122; i++){
+        	for(int i=40; i<122; i++){
         		int k=0;
-        		result.set(k, key.get(0));//song_id
-        		k++;
-        		result.set(k, i);
+        		result.set(k, map_day[i+2][2]);//label
         		double mines = 0.0;
-        		for(int j=1; j<7; j++){
-        			k++;
-        			result.set(k, map_day[i-3*j][2]);//avg_3
+        		for(int j=1; j<7; j++)
         			mines += (map_day[i-3*j][2]-map_day[i-3*j-3][2]);
-        		}
         		k++;
         		result.set(k, mines);//mines
         		k++;
@@ -129,6 +100,8 @@ public class test_data_1 {
         			k++;
         			result.set(k, map_day[i-1][j]);//1~7->avg_day
         		}
+        		if(map_day[i-1][7] < 1)
+        			continue;
         		double xnext1 = map_day[i-7][0];
         		double mines_7day = 0.0;
         		for(int j=0; j<before_day; j++){
@@ -145,18 +118,7 @@ public class test_data_1 {
         		k++;
         		result.set(k, (long) i%7);//week
         		k++;
-        		result.set(k, publish_time);//publish_time
-        		k++;
-        		result.set(k, song_init_plays);//song_init_plays
-        		k++;
-        		result.set(k, language);//language
-        		k++;
-        		result.set(k, gender);//gender
-        		k++;
-        		if(publish_time<1)//avg_init_play
-        			result.set(k, 0.0);
-        		else
-        			result.set(k, song_init_plays/publish_time);
+        		result.set(k, key.get(0).toString());
         		context.write(result); 
         	}
         }
@@ -178,10 +140,6 @@ public class test_data_1 {
     job.setMapOutputValueSchema(SchemaUtils.fromString("day:bigint"));
     for(int i=0; i<8; i++)
     	job.setMapOutputValueSchema(SchemaUtils.fromString("count" + i + ":double"));
-    job.setMapOutputValueSchema(SchemaUtils.fromString("count8:string"));
-    for(int i=9; i<12; i++){
-    	job.setMapOutputValueSchema(SchemaUtils.fromString("count" + i + ":double"));
-    }
 
     InputUtils.addTable(TableInfo.builder().tableName(args[0]).build(), job);
     OutputUtils.addTable(TableInfo.builder().tableName(args[1]).build(), job);

@@ -43,19 +43,25 @@ public class get_next_test {
 		song_id.set(1, tag);
 		//System.out.println(temp_table_name);
     	if(tag==0){
-    		Object temp_k[] = new Object[9];
+    		Object temp_k[] = new Object[13];
     		temp_k[0] = Long.parseLong(record.get(1).toString());
     		for (int i = 2; i < record.getColumnCount(); i++) {
-    			temp_k[i-1] = Double.parseDouble(record.get(i).toString());
+    			if(i == 10)
+        			temp_k[i-1] = record.get(i).toString();
+        		else
+        			temp_k[i-1] = Double.parseDouble(record.get(i).toString());
     		}
     		day_count.set(temp_k);
     		context.write(song_id, day_count);
     	}
     	else{
-    		Object temp_k[] = new Object[9];
+    		Object temp_k[] = new Object[13];
     		temp_k[0] = Long.parseLong(record.get(1).toString());
     		temp_k[1] = Double.parseDouble(record.get(2).toString());
     		for(int i=2; i<9; i++)
+    			temp_k[i] = 0.0;
+    		temp_k[9] = "";
+    		for(int i=10; i<13; i++)
     			temp_k[i] = 0.0;
     		day_count.set(temp_k);
     		context.write(song_id, day_count);
@@ -85,6 +91,10 @@ public class get_next_test {
     	//parse end
     	Double sum = 0.0; // delete mean of everyday less ignore
     	Long maxday = (long) 0; // now contain day
+    	String p_s = "";
+    	Double song_init_plays = null ;
+        Double language = null ;
+        Double gender = null ;
         while (values.hasNext()) {
         	Record val = values.next();
         	long tag = (Long) key.get(1);
@@ -100,8 +110,24 @@ public class get_next_test {
                 for(int i=0; i<8; i++){
               	  	map_day[Integer.parseInt(val.get(0).toString())][i] = (Double)val.get(1+i);
                 }
+                p_s = val.get(9).toString();
+                song_init_plays = (Double)val.get(10);
+                language = (Double)val.get(11);
+                gender = (Double)val.get(12);
         	}
         }
+        //get publish_time
+        Double publish_time = 0.0;
+        SimpleDateFormat sdf=new SimpleDateFormat("yyyyMMdd");
+        try {
+			Date dt = sdf.parse(p_s);
+			Date bdt = sdf.parse("20150301");
+			publish_time = (double) ((bdt.getTime()-dt.getTime())/(24*60*60*1000));
+        } catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+        }
+        //get publish_time end
         process_add_day(map, map_day, maxday);
         //System.out.println(""+sum/183+" maxday:"+maxday);
         /* 0->1, 1->2, 2->3, 3->5, 4->7, 5->10, 6->15, 7->20 */
@@ -112,8 +138,11 @@ public class get_next_test {
         	k++;
         	result.set(k, i);
         	double mines = 0.0;
-        	for(int j=1; j<7; j++)
+        	for(int j=1; j<7; j++){
+        		k++;
+				result.set(k, map_day[i-3*j][2]);//avg_3
         		mines += (map_day[i-3*j][2]-map_day[i-3*j-3][2]);
+        	}
         	k++;
         	result.set(k, mines);//mines
         	k++;
@@ -139,6 +168,19 @@ public class get_next_test {
        		result.set(k, mines_7day);//mines_7day
         	k++;
        		result.set(k, (long) i%7);//week
+       		k++;
+    		result.set(k, publish_time);//publish_time
+    		k++;
+    		result.set(k, song_init_plays);//song_init_plays
+    		k++;
+    		result.set(k, language);//language
+    		k++;
+    		result.set(k, gender);//gender
+    		k++;
+    		if(publish_time<1)//avg_init_play
+    			result.set(k, 0.0);
+    		else
+    			result.set(k, song_init_plays/publish_time);
        		context.write(result); 
     	}
     }
@@ -183,6 +225,10 @@ public class get_next_test {
     job.setMapOutputValueSchema(SchemaUtils.fromString("day:bigint"));
     for(int i=0; i<8; i++)
     	job.setMapOutputValueSchema(SchemaUtils.fromString("count" + i + ":double"));
+    job.setMapOutputValueSchema(SchemaUtils.fromString("count8:string"));
+    for(int i=9; i<12; i++){
+    	job.setMapOutputValueSchema(SchemaUtils.fromString("count" + i + ":double"));
+    }
     
     job.setPartitionColumns(new String[]{"key"});
     job.setOutputKeySortColumns(new String[]{"key", "tag"});
