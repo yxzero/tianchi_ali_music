@@ -63,7 +63,7 @@ public class test_data_1 {
     public void reduce(Record key, Iterator<Record> values, TaskContext context)
         throws IOException {
     	//parse
-    	int ignore = 50;
+    	int ignore = 30;
     	int before_day = 4;
     	//parse end
     	Double sum = 0.0; // delete mean of everyday less ignore
@@ -94,8 +94,8 @@ public class test_data_1 {
         Double language = (Double)val.get(11);
         Double gender = (Double)val.get(12);
         //get publish_time end
-        /*
-        if(sum/183.0 < ignore){
+        
+        if(sum/183.0 < ignore || is_stable(182, map_day)){
         	for(int i=0; i<60; i++){
         		result.set(0, key.get(0));
         		result.set(1, i);
@@ -103,12 +103,28 @@ public class test_data_1 {
         		context.write(result); 
         	}
         }
-        */
-        /* 0->1, 1->2, 2->3, 3->5, 4->7, 5->10, 6->15, 7->20 */
+        if(publish_time < (20-183)){
+        	double k_p1 = map_day[182][0];
+        	double k_p2 = map_day[181][0];
+        	double tempkp = 0.0;
+        	for(int i=0; i<60; i++){
+        		result.set(0, key.get(0));
+        		result.set(1, i);
+        		tempkp = (k_p1+k_p2)/2.0;
+        		result.set(2, (long) (tempkp));
+        		k_p2 = k_p1;
+        		k_p1 = tempkp;
+        		context.write(result); 
+        	}
+        }
         
+        /* 0->1, 1->2, 2->3, 3->5, 4->7, 5->10, 6->15, 7->20 */
+        /*
         if(sum/183.0 >= ignore){
         	for(int i=183; i<184; i++){
         	//for(int i=121; i<122; i++){
+        		if(is_stable(182, map_day) || publish_time < (20-183))
+        			continue;
         		int k=0;
         		result.set(k, key.get(0));//song_id
         		k++;
@@ -160,7 +176,27 @@ public class test_data_1 {
         		context.write(result); 
         	}
         }
+        */
     }
+	private boolean is_stable(int i, Double[][] map_day) {
+		// TODO Auto-generated method stub
+		double avg_20 = 0.0;
+		double avg_sqr = 0.0;
+		double max_day = map_day[i][0];
+		double min_day = map_day[i][0];
+		for(int j=0; j<20; j++){
+			max_day = Math.max(max_day, map_day[i-j][0]);
+			min_day = Math.min(min_day, map_day[i-j][0]);
+			avg_20 += map_day[i-j][0];
+			avg_sqr += Math.pow(map_day[i-j][0], 2);
+		}
+		avg_20 /= 20.0;
+		avg_sqr /= 20.0;
+		double sd = Math.sqrt(avg_sqr - Math.pow(avg_20, 2));
+		if(max_day-min_day<40 || sd<(avg_20*0.15) || sd<30)
+			return true;
+		return false;
+	}
   }
 
   public static void main(String[] args) throws Exception {

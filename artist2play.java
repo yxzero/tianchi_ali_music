@@ -35,8 +35,9 @@ public class artist2play {
     @Override
     public void map(long recordNum, Record record, TaskContext context)
         throws IOException {
-    	song_id.set(new Object[] { record.get(0).toString()+","+record.get(2).toString() });
-    	day_count.set(new Object[] { Double.parseDouble(record.get(3).toString()) });
+    	System.out.println(record.get(0).toString());
+    	song_id.set(new Object[] { record.get(1).toString() });
+    	day_count.set(new Object[] { Long.valueOf(record.get(2).toString()), Double.parseDouble(record.get(3).toString()) });
     	context.write(song_id, day_count);
     }
   }
@@ -55,29 +56,37 @@ public class artist2play {
     @Override
     public void reduce(Record key, Iterator<Record> values, TaskContext context)
         throws IOException {
-    	double count = 0.0;
-    	while (values.hasNext()) {
-            Record val = values.next();
-            count += val.getDouble(0);
-          }
-    	String[] a = key.get(0).toString().split(",");
-    	int day = Integer.parseInt(a[1]);
-    	SimpleDateFormat sdf=new SimpleDateFormat("yyyyMMdd");
-    	Calendar cal = Calendar.getInstance();
-    	Date bdt;
-    	try {
-    		bdt = sdf.parse("20150901");
-    		cal.setTime(bdt);
-    	} catch (ParseException e1) {
-    		// TODO Auto-generated catch block
-    		e1.printStackTrace();
-    	}
-    	result.set(0, a[0]);
-    	result.set(1, ""+(int)count);
-    	System.out.println(count);
-    	cal.add(Calendar.DATE, day);
-        result.set(2, (new SimpleDateFormat("yyyyMMdd")).format(cal.getTime()));
-        context.write(result); 
+    	HashMap<Long , Double> map = new HashMap<Long , Double>();
+        while (values.hasNext()) {
+        	double temp;
+        	Record val = values.next();
+        	if( !map.containsKey(val.get(0).toString()) ){
+        		map.put(val.getBigint(0), (Double) val.get(1));
+        	}
+        	else{
+        		temp = map.get(val.getBigint(0)) + (Double) val.get(1);
+        		map.put(val.getBigint(0), temp);
+        	}
+        }
+        SimpleDateFormat sdf=new SimpleDateFormat("yyyyMMdd");
+        Calendar cal = Calendar.getInstance();
+        Date bdt;
+		try {
+			bdt = sdf.parse("20150901");
+			cal.setTime(bdt);
+		} catch (ParseException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+        Iterator<Long> it = map.keySet().iterator();  
+        while(it.hasNext()) {  
+            Long day_i = (Long)it.next();  
+            cal.add(Calendar.DATE, 1);
+            result.set(0, key.get(0));
+            result.set(1, (new SimpleDateFormat("yyyyMMdd")).format(cal.getTime()));
+            result.set(2, map.get(day_i).toString());
+            context.write(result); 
+        }
     }
   }
 
@@ -93,6 +102,7 @@ public class artist2play {
     job.setReducerClass(SumReducer.class);
 
     job.setMapOutputKeySchema(SchemaUtils.fromString("song:string"));
+    job.setMapOutputValueSchema(SchemaUtils.fromString("day:bigint"));
     job.setMapOutputValueSchema(SchemaUtils.fromString("count:double"));
 
     InputUtils.addTable(TableInfo.builder().tableName(args[0]).build(), job);

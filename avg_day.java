@@ -35,7 +35,7 @@ public class avg_day {
     public void map(long recordNum, Record record, TaskContext context)
         throws IOException {
     	song_id.set(new Object[] { record.get(0).toString() });
-    	day_count.set(new Object[] { Long.parseLong(record.get(1).toString()), Double.parseDouble(record.get(2).toString()) });
+    	day_count.set(new Object[] { Long.valueOf(record.get(1).toString()), Double.parseDouble(record.get(2).toString()) });
     	context.write(song_id, day_count);
     }
   }
@@ -56,29 +56,27 @@ public class avg_day {
         throws IOException {
     	HashMap<Long , Double> map = new HashMap<Long , Double>();
         while (values.hasNext()) {
-      	long temp;
-          Record val = values.next();
-          map.put((Long)val.get(0), (Double)val.get(1));
+        	Record val = values.next();
+        	map.put((Long)val.get(0), (Double) val.get(1));
         }
-        int a[]={1,2,3,5,7,10,15,20};
-        result.set(0, key.get(0));
-        for(Long i=(long) 0; i<183; i++){
-        	result.set(1, i);
-        	int k=0;
-            Double sum=0.0;
-            int kk=0;
-            for(int j=0; j<8; j++){
-            	while(k!=a[j]){
-            		if(map.containsKey(i-k)){
-            			kk++;
-            			sum += (Double) map.get(i-k);
-            		}
+        Iterator<Long> it = map.keySet().iterator();
+        int a[] = {1,2,3,5,7,10,15,20};
+        while(it.hasNext()) {  
+            Long day_i = (Long) it.next();
+            result.set(0, key.get(0));
+            result.set(1, day_i);
+            int k = 0;
+            int kt = 0;
+            double sum = 0.0;
+            for(int i=0; i<8; i++){
+            	while( k != a[i]){
             		k++;
+            		if(map.containsKey(day_i-k)){
+            			sum += map.get(day_i-k);
+            			kt++;
+            		}
             	}
-            	if(kk > 0)
-            		result.set(j+2, sum/(( (double) kk ) * 1.0));
-            	else
-            		result.set(j+2, sum);
+                result.set(i+2, sum/( ((double) kt) * 1.0 ));
             }
             context.write(result); 
         }

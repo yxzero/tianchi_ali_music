@@ -86,7 +86,7 @@ public class get_next_test {
     	HashMap<Long , Double> map = new HashMap<Long , Double>();
     	Double[][] map_day = new Double[244][8];
     	//parse
-    	int ignore = 50;
+    	int ignore = 30;
     	int before_day = 4;
     	//parse end
     	Double sum = 0.0; // delete mean of everyday less ignore
@@ -131,7 +131,8 @@ public class get_next_test {
         process_add_day(map, map_day, maxday);
         //System.out.println(""+sum/183+" maxday:"+maxday);
         /* 0->1, 1->2, 2->3, 3->5, 4->7, 5->10, 6->15, 7->20 */
-        if(sum/183.0 >= ignore){
+        System.out.println(key.get(0));
+        if(sum/183.0 >= ignore && maxday>1 && !is_stable(maxday.intValue(), map_day)){
         	int i = (int) (maxday+1);
         	int k=0;
         	result.set(k, key.get(0));//song_id
@@ -184,12 +185,33 @@ public class get_next_test {
        		context.write(result); 
     	}
     }
+    
+    private boolean is_stable(int i, Double[][] map_day) {
+		// TODO Auto-generated method stub
+		double avg_20 = 0.0;
+		double avg_sqr = 0.0;
+		double max_day = map_day[i][0];
+		double min_day = map_day[i][0];
+		for(int j=0; j<20; j++){
+			System.out.println(i-j);
+			max_day = Math.max(max_day, map_day[i-j][0]);
+			min_day = Math.min(min_day, map_day[i-j][0]);
+			avg_20 += map_day[i-j][0];
+			avg_sqr += Math.pow(map_day[i-j][0], 2);
+		}
+		avg_20 /= 20.0;
+		avg_sqr /= 20.0;
+		double sd = Math.sqrt(avg_sqr - Math.pow(avg_20, 2));
+		if(max_day-min_day<40 || sd<(avg_20*0.15) || sd<30)
+			return true;
+		return false;
+	}
 
 	private void process_add_day(HashMap<Long, Double> map, Double[][] map_day,
 			Long maxday) {
 		// TODO Auto-generated method stub
 		int a[]={1,2,3,5,7,10,15,20};
-        for(Long i=(long) 183; i<=maxday; i++){
+        for(Long i=(long) 182; i<=maxday; i++){
         	int k=0;
             Double sum=0.0;
             for(int j=0; j<8; j++){

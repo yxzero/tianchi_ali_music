@@ -119,7 +119,7 @@ public class song1day {
             }
             result.set(0, key.get(0));
             result.set(1, day);
-            result.set(2, (double) map.get(day_i));
+            result.set(2, map.get(day_i));
             context.write(result); 
         }
     }

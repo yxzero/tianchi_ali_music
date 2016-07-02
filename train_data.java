@@ -63,7 +63,7 @@ public class train_data {
     public void reduce(Record key, Iterator<Record> values, TaskContext context)
         throws IOException {
     	//parse
-    	int ignore = 50;
+    	int ignore = 30;
     	int before_day = 4;
     	//parse end
     	Double sum = 0.0; // delete mean of everyday less ignore
@@ -98,6 +98,8 @@ public class train_data {
         	for(int i=40; i<178; i++){
         		if(i<(-publish_time+30))
         			continue;
+        		if(is_stable(i-1, map_day))
+        			continue;
         		int k=0;
         		result.set(k, map_day[i+5][2]);//label
         		double mines = 0.0;
@@ -118,10 +120,10 @@ public class train_data {
         		}
         		if(map_day[i-1][7] < 1)
         			continue;
-        		double xnext1 = map_day[i-7][0];
+        		double xnext1 = map_day[i-7][3];
         		double mines_7day = 0.0;
         		for(int j=0; j<before_day; j++){
-        			double xnext = map_day[i-7*(j+2)][0];
+        			double xnext = map_day[i-7*(j+2)][3];
         			k++;
         			result.set(k, xnext1-xnext);//before*mines7
         			k++;
@@ -152,6 +154,26 @@ public class train_data {
         	}
         }
     }
+
+	private boolean is_stable(int i, Double[][] map_day) {
+		// TODO Auto-generated method stub
+		double avg_20 = 0.0;
+		double avg_sqr = 0.0;
+		double max_day = map_day[i][0];
+		double min_day = map_day[i][0];
+		for(int j=0; j<20; j++){
+			max_day = Math.max(max_day, map_day[i-j][0]);
+			min_day = Math.min(min_day, map_day[i-j][0]);
+			avg_20 += map_day[i-j][0];
+			avg_sqr += Math.pow(map_day[i-j][0], 2);
+		}
+		avg_20 /= 20.0;
+		avg_sqr /= 20.0;
+		double sd = Math.sqrt(avg_sqr - Math.pow(avg_20, 2));
+		if(max_day-min_day<40 || sd<(avg_20*0.15) || sd<30)
+			return true;
+		return false;
+	}
   }
 
   public static void main(String[] args) throws Exception {
