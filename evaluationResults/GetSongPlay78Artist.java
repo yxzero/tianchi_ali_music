@@ -74,12 +74,18 @@ public class GetSongPlay78Artist {
         String artist_id = "";
         boolean flag = true;
         while (values.hasNext()) {
-          Record val = values.next();
+          Record v = values.next();
+          Record val = context.createMapOutputValueRecord();
+          val.set(new Object[] { v.get(0).toString(),v.get(1).toString(),v.get(2).toString(),v.get(3).toString()});
+          items.add(val);
           if(flag && val.get(3).toString().equals("1")) {
           	artist_id = val.get(2).toString();
           	flag = false;
           }
-    	  items.add(val);
+    	  
+        }
+        if (artist_id.equals("")) {
+        	return;
         }
        for(Record vall:items){
     	   if(vall.get(3).toString().equals("0")) {
@@ -94,7 +100,7 @@ public class GetSongPlay78Artist {
   }
 
   public static void main(String[] args) throws Exception {
-    if (args.length != 2) {
+    if (args.length != 3) {
       System.err.println("Usage: WordCount <in_table> <out_table>");
       System.exit(2);
     }
@@ -109,7 +115,8 @@ public class GetSongPlay78Artist {
 
 
     InputUtils.addTable(TableInfo.builder().tableName(args[0]).build(), job);
-    OutputUtils.addTable(TableInfo.builder().tableName(args[1]).build(), job);
+    InputUtils.addTable(TableInfo.builder().tableName(args[1]).build(), job);
+    OutputUtils.addTable(TableInfo.builder().tableName(args[2]).build(), job);
 
     JobClient.runJob(job);
   }

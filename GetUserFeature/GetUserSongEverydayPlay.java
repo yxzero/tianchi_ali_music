@@ -1,7 +1,8 @@
-package hadoop.TianChiMapreduce.evaluationResults;
+package hadoop.TianChiMapreduce.GetUserFeature;
 
 import java.awt.List;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -17,25 +18,46 @@ import com.aliyun.odps.mapred.utils.InputUtils;
 import com.aliyun.odps.mapred.utils.OutputUtils;
 import com.aliyun.odps.mapred.utils.SchemaUtils;
 
-public class GetTempResult {
+public class GetUserSongEverydayPlay {
 
   public static class TokenizerMapper extends MapperBase {
     private Record key;
     private Record value;
+    Map<String,String> dateMap = new HashMap<String,String>();
+    
+    private void getDateMap() {
+    	Integer day = 0;
+    	int date;
+    	int[] month_start_day = {20150301,20150401,20150501,20150601,20150701,20150801};
+    	int[] month_end_day = {20150331,20150430,20150531,20150630,20150731,20150830};
+    	for(int i=0; i<6; i++) {
+			for(date=month_start_day[i]; date<=month_end_day[i]; date++ ){
+				dateMap.put(Integer.toString(date), Integer.toString(day));
+				day++;
+			}
+    	}
+    	
+    }
 
+    
     @Override
     public void setup(TaskContext context) throws IOException {
     	key = context.createMapOutputKeyRecord();
     	value = context.createMapOutputValueRecord();
+        getDateMap();
         System.out.println("TaskID:" + context.getTaskID().toString());
     }
+    
+    
 
     @Override
     public void map(long recordNum, Record record, TaskContext context)
-        throws IOException {	 
-		key.set(new Object[] { record.get(0).toString(),record.get(2).toString()});
-		value.set(new Object[] { (long)(Long.parseLong(record.get(1).toString())*0.5)});
-        context.write(key, value);    
+        throws IOException {
+    	if(record.get(3).toString().endsWith("1")) {
+			key.set(new Object[] { record.get(0).toString(),record.get(1).toString()});
+			value.set(new Object[] { dateMap.get(record.get(4).toString()),1L});
+	        context.write(key, value);  
+    	}
     }
   }
 
@@ -52,15 +74,30 @@ public class GetTempResult {
     @Override
     public void reduce(Record key, Iterator<Record> values, TaskContext context)
         throws IOException {
-      
-      while (values.hasNext()) {
-        Record val = values.next();
-        result.set(0, key.get(0).toString());
-        result.set(1, val.get(0).toString());
-        result.set(2, key.get(1).toString());
-        context.write(result);  
+     int[] day_play = new int[183];
+     for(int i=0; i<183; i++) {
+    	 day_play[i] = 0;
      }
-	 
+     
+     Long play_sum = 0L;
+      while (values.hasNext()) {
+    	  Record val = values.next();
+    	  day_play[Integer.parseInt(val.get(0).toString())]++;
+    	  play_sum++;
+     }
+     
+      StringBuffer everyday_play = new StringBuffer();
+      for(int i=0; i<182; i++) {
+    	  everyday_play.append(String.valueOf(day_play[i]));
+    	  everyday_play.append(",");
+      }
+      everyday_play.append(String.valueOf(day_play[182]));
+      
+      result.set(0, key.get(0).toString());
+      result.set(1, key.get(1).toString());
+      result.set(2, everyday_play.toString());
+      result.set(3, play_sum);
+      context.write(result);  
   }
 
   public static void main(String[] args) throws Exception {
@@ -74,9 +111,8 @@ public class GetTempResult {
     job.setMapperClass(TokenizerMapper.class);
     job.setReducerClass(SumReducer.class);
 
-    job.setMapOutputKeySchema(SchemaUtils.fromString("artist_id:string"));
-    job.setMapOutputKeySchema(SchemaUtils.fromString("ds:string"));
-    job.setMapOutputValueSchema(SchemaUtils.fromString("count:bigint"));
+    job.setMapOutputKeySchema(SchemaUtils.fromString("user_id:string,song_id:string"));
+    job.setMapOutputValueSchema(SchemaUtils.fromString("day:string,count:bigint"));
 
     InputUtils.addTable(TableInfo.builder().tableName(args[0]).build(), job);
     OutputUtils.addTable(TableInfo.builder().tableName(args[1]).build(), job);
@@ -85,6 +121,12 @@ public class GetTempResult {
   }
   }
 }
+
+
+
+
+
+
 
 
 

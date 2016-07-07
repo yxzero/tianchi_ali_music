@@ -1,4 +1,4 @@
-package hadoop.TianChiMapreduce.evaluationResults;
+package hadoop.TianChiMapreduce;
 
 import java.awt.List;
 import java.io.IOException;
@@ -17,7 +17,7 @@ import com.aliyun.odps.mapred.utils.InputUtils;
 import com.aliyun.odps.mapred.utils.OutputUtils;
 import com.aliyun.odps.mapred.utils.SchemaUtils;
 
-public class GetTempResult {
+public class GetArtistPlay {
 
   public static class TokenizerMapper extends MapperBase {
     private Record key;
@@ -33,8 +33,8 @@ public class GetTempResult {
     @Override
     public void map(long recordNum, Record record, TaskContext context)
         throws IOException {	 
-		key.set(new Object[] { record.get(0).toString(),record.get(2).toString()});
-		value.set(new Object[] { (long)(Long.parseLong(record.get(1).toString())*0.5)});
+		key.set(new Object[] { record.get(3).toString(),record.get(2).toString()});
+		value.set(new Object[] { Long.parseLong(record.get(1).toString())});
         context.write(key, value);    
     }
   }
@@ -52,15 +52,15 @@ public class GetTempResult {
     @Override
     public void reduce(Record key, Iterator<Record> values, TaskContext context)
         throws IOException {
-      
+      long count = 0;
       while (values.hasNext()) {
         Record val = values.next();
-        result.set(0, key.get(0).toString());
-        result.set(1, val.get(0).toString());
-        result.set(2, key.get(1).toString());
-        context.write(result);  
+        count += Long.parseLong(val.get(0).toString());
      }
-	 
+	 result.set(0, key.get(0).toString());
+     result.set(1, Long.toString(count));
+     result.set(2, key.get(1).toString());
+     context.write(result);  
   }
 
   public static void main(String[] args) throws Exception {
@@ -85,8 +85,5 @@ public class GetTempResult {
   }
   }
 }
-
-
-
 
 

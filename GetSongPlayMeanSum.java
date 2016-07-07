@@ -1,4 +1,4 @@
-package hadoop.TianChiMapreduce.evaluationResults;
+package hadoop.TianChiMapreduce;
 
 import java.awt.List;
 import java.io.IOException;
@@ -17,25 +17,51 @@ import com.aliyun.odps.mapred.utils.InputUtils;
 import com.aliyun.odps.mapred.utils.OutputUtils;
 import com.aliyun.odps.mapred.utils.SchemaUtils;
 
-public class GetTempResult {
+public class GetSongPlayMeanSum {
+  public static int mean_days = 20;
 
   public static class TokenizerMapper extends MapperBase {
-    private Record key;
-    private Record value;
+    private Record word;
+    private Record one;
+    private int due_date = 182 - mean_days;
+    
+    Map<String,Integer> dateMap = new HashMap<String,Integer>();
+    Map<String,String> dayMap = new HashMap<String,String>();
+    
+    private void getDateMap() {
+    	int day = 0;
+    	int date;
+    	int[] month_start_day = {20150301,20150401,20150501,20150601,20150701,20150801};
+    	int[] month_end_day = {20150331,20150430,20150531,20150630,20150731,20150830};
+    	for(int i=0; i<6; i++) {
+			for(date=month_start_day[i]; date<=month_end_day[i]; date++ ){
+				dateMap.put(Integer.toString(date), day);
+				dayMap.put(Integer.toString(day), Integer.toString(date));
+				day++;
+			}
+    	}
+    	
+    }
 
     @Override
     public void setup(TaskContext context) throws IOException {
-    	key = context.createMapOutputKeyRecord();
-    	value = context.createMapOutputValueRecord();
-        System.out.println("TaskID:" + context.getTaskID().toString());
+      word = context.createMapOutputKeyRecord();
+      one = context.createMapOutputValueRecord();
+      one.set(new Object[] { 1L });
+      System.out.println("TaskID:" + context.getTaskID().toString());
     }
 
     @Override
     public void map(long recordNum, Record record, TaskContext context)
-        throws IOException {	 
-		key.set(new Object[] { record.get(0).toString(),record.get(2).toString()});
-		value.set(new Object[] { (long)(Long.parseLong(record.get(1).toString())*0.5)});
-        context.write(key, value);    
+        throws IOException {
+    getDateMap();
+	if (record.get(3).toString().equals("1")) {
+		if(dateMap.get(record.get(4).toString()) > due_date) {
+			word.set(new Object[] { record.get(1).toString()});
+	        context.write(word, one);	
+		}
+	}
+      
     }
   }
 
@@ -44,6 +70,7 @@ public class GetTempResult {
    **/
   public static class SumReducer extends ReducerBase {
     private Record result = null;
+
     @Override
     public void setup(TaskContext context) throws IOException {
       result = context.createOutputRecord();
@@ -52,15 +79,14 @@ public class GetTempResult {
     @Override
     public void reduce(Record key, Iterator<Record> values, TaskContext context)
         throws IOException {
-      
+      long count = 0;
       while (values.hasNext()) {
         Record val = values.next();
-        result.set(0, key.get(0).toString());
-        result.set(1, val.get(0).toString());
-        result.set(2, key.get(1).toString());
-        context.write(result);  
+        count++;
      }
-	 
+      result.set(0, key.get(0).toString());
+      result.set(1, count);
+      context.write(result);
   }
 
   public static void main(String[] args) throws Exception {
@@ -74,8 +100,7 @@ public class GetTempResult {
     job.setMapperClass(TokenizerMapper.class);
     job.setReducerClass(SumReducer.class);
 
-    job.setMapOutputKeySchema(SchemaUtils.fromString("artist_id:string"));
-    job.setMapOutputKeySchema(SchemaUtils.fromString("ds:string"));
+    job.setMapOutputKeySchema(SchemaUtils.fromString("word:string"));
     job.setMapOutputValueSchema(SchemaUtils.fromString("count:bigint"));
 
     InputUtils.addTable(TableInfo.builder().tableName(args[0]).build(), job);
@@ -85,8 +110,4 @@ public class GetTempResult {
   }
   }
 }
-
-
-
-
 

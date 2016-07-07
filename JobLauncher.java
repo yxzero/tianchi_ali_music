@@ -1,4 +1,4 @@
-package yx_song_day.testxxx;
+package hadoop.TianChiMapreduce;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.account.Account;

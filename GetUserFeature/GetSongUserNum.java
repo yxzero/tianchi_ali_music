@@ -1,10 +1,13 @@
-package hadoop.TianChiMapreduce.evaluationResults;
+package hadoop.TianChiMapreduce.GetUserFeature;
 
 import java.awt.List;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.TableInfo;
@@ -17,25 +20,29 @@ import com.aliyun.odps.mapred.utils.InputUtils;
 import com.aliyun.odps.mapred.utils.OutputUtils;
 import com.aliyun.odps.mapred.utils.SchemaUtils;
 
-public class GetTempResult {
+public class GetSongUserNum {
 
   public static class TokenizerMapper extends MapperBase {
     private Record key;
     private Record value;
-
+    
     @Override
     public void setup(TaskContext context) throws IOException {
     	key = context.createMapOutputKeyRecord();
     	value = context.createMapOutputValueRecord();
         System.out.println("TaskID:" + context.getTaskID().toString());
     }
+    
+    
 
     @Override
     public void map(long recordNum, Record record, TaskContext context)
-        throws IOException {	 
-		key.set(new Object[] { record.get(0).toString(),record.get(2).toString()});
-		value.set(new Object[] { (long)(Long.parseLong(record.get(1).toString())*0.5)});
-        context.write(key, value);    
+        throws IOException {
+    	
+		key.set(new Object[] { record.get(1).toString()});
+		value.set(new Object[] { record.get(0).toString()});
+        context.write(key, value);  
+    	
     }
   }
 
@@ -52,15 +59,18 @@ public class GetTempResult {
     @Override
     public void reduce(Record key, Iterator<Record> values, TaskContext context)
         throws IOException {
+     
+      Set<String> user_id_list = new HashSet<String>();
       
       while (values.hasNext()) {
-        Record val = values.next();
-        result.set(0, key.get(0).toString());
-        result.set(1, val.get(0).toString());
-        result.set(2, key.get(1).toString());
-        context.write(result);  
+    	  Record val = values.next();
+    	  user_id_list.add(new String(val.getString(0))); 
      }
-	 
+     result.set(0, key.getString(0));
+     result.set(1, new Long(user_id_list.size()));
+     context.write(result);  
+     
+    }    
   }
 
   public static void main(String[] args) throws Exception {
@@ -74,17 +84,24 @@ public class GetTempResult {
     job.setMapperClass(TokenizerMapper.class);
     job.setReducerClass(SumReducer.class);
 
-    job.setMapOutputKeySchema(SchemaUtils.fromString("artist_id:string"));
-    job.setMapOutputKeySchema(SchemaUtils.fromString("ds:string"));
-    job.setMapOutputValueSchema(SchemaUtils.fromString("count:bigint"));
+    job.setMapOutputKeySchema(SchemaUtils.fromString("song_id:string"));
+    job.setMapOutputValueSchema(SchemaUtils.fromString("user_id:string"));
 
     InputUtils.addTable(TableInfo.builder().tableName(args[0]).build(), job);
     OutputUtils.addTable(TableInfo.builder().tableName(args[1]).build(), job);
 
     JobClient.runJob(job);
   }
-  }
+  
 }
+
+
+
+
+
+
+
+
 
 
 

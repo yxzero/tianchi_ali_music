@@ -1,4 +1,4 @@
-package yx_song_day.testxxx;
+package hadoop.TianChiMapreduce;
 
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.mapred.Reducer;
